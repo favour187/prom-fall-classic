@@ -1,0 +1,1 @@
+"""Competition-specific feature modules."""

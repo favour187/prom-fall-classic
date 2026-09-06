@@ -1,0 +1,19 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      ENVIRONMENT: production
+      DATA_DIR: /app/data
+      DATABASE_URL: sqlite:////app/data/app.db
+      STATIC_DIR: /app/web/dist
+      SECRET_KEY: ${SECRET_KEY:-please-change-me}
+      AI_MODE: ${AI_MODE:-auto}
+      AI_BASE_URL: ${AI_BASE_URL:-https://api.openai.com/v1}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-gpt-4o-mini}
+    volumes:
+      - app-data:/app/data
+volumes:
+  app-data:
