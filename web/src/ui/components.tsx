@@ -42,8 +42,20 @@ export function Button({
 /* ------------------------------------------------------------------ */
 /* Card                                                                */
 /* ------------------------------------------------------------------ */
-export function Card({ className, children }: { className?: string; children: ReactNode }) {
-  return <div className={cx("card", className)}>{children}</div>;
+export function Card({
+  className,
+  children,
+  style,
+}: {
+  className?: string;
+  children: ReactNode;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <div className={cx("card", className)} style={style}>
+      {children}
+    </div>
+  );
 }
 
 /* ------------------------------------------------------------------ */

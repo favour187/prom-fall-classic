@@ -206,13 +206,25 @@ class _CacheEntry:
 
 
 class AIGateway:
-    def __init__(self, settings: Settings, *, provider: AIProvider | None = None) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        *,
+        provider: AIProvider | None = None,
+        local_skills: Sequence[LocalSkill] | None = None,
+    ) -> None:
         self.settings = settings
         self._provider = provider
+        self._local = LocalDemoProvider(local_skills or [])
         self._cache: dict[str, _CacheEntry] = {}
         # If a provider is injected (tests), respect it.
         if provider is not None and settings.ai_mode == "auto":
             self.settings = settings.with_overrides(ai_mode="remote")
+
+    def register_local_skills(self, skills: Sequence[LocalSkill]) -> None:
+        """Register domain-specific deterministic skills (per competition)."""
+        for skill in skills:
+            self._local.register(skill)
 
     # -- provider resolution -------------------------------------------
     def _remote_provider(self) -> OpenAICompatibleProvider:
@@ -238,13 +250,13 @@ class AIGateway:
             return self._provider
         mode = self.settings.ai_mode
         if mode == "local":
-            return LocalDemoProvider()
+            return self._local
         if mode == "remote":
             return self._remote_provider()
         # auto
         if self.settings.ai_remote_configured:
             return self._remote_provider()
-        return LocalDemoProvider()
+        return self._local
 
     # -- main entry point ----------------------------------------------
     def chat(
@@ -278,7 +290,7 @@ class AIGateway:
         except ServiceUnavailableError as exc:
             if self.settings.ai_mode == "auto" and self._provider is None:
                 logger.warning("Remote AI unavailable (%s); using local fallback.", exc.code)
-                text = LocalDemoProvider().complete(messages, temperature=temperature, max_tokens=max_tokens)
+                text = self._local.complete(messages, temperature=temperature, max_tokens=max_tokens)
                 result = AIResult(
                     text=text,
                     provider="local-demo",
@@ -324,9 +336,9 @@ class AIGateway:
 _shared_gateway: AIGateway | None = None
 
 
-def install_gateway(settings: Settings) -> None:
+def install_gateway(settings: Settings, *, local_skills: Sequence[LocalSkill] | None = None) -> None:
     global _shared_gateway
-    _shared_gateway = AIGateway(settings)
+    _shared_gateway = AIGateway(settings, local_skills=local_skills)
 
 
 def get_gateway() -> AIGateway:

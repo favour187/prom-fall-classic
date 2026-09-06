@@ -48,6 +48,7 @@ def create_app(
     extra_routers: Sequence[APIRouter] | None = None,
     enable_rate_limit: bool = True,
     disable_auth: bool = False,
+    local_skills: Sequence[Any] | None = None,
 ) -> FastAPI:
     """Build the FastAPI application for a competition repo."""
     setup_logging(debug=settings.debug, json_logs=settings.is_production)
@@ -55,7 +56,7 @@ def create_app(
     set_app_state(state)
     if settings.auto_create_tables:
         init_db(state.engine)
-    ai_core.install_gateway(settings)
+    ai_core.install_gateway(settings, local_skills=local_skills)
 
     app = FastAPI(
         title=settings.app_name,
@@ -123,14 +124,13 @@ def create_app(
 
     @app.exception_handler(404)
     async def _api_404(request: Request, _exc: Exception) -> JSONResponse:
-        # Only interfere with unknown /api paths; the SPA catch-all below
-        # handles everything else.
-        if request.url.path.startswith(settings.api_prefix):
-            return JSONResponse(
-                status_code=404,
-                content=error_envelope("not_found", "Resource not found.", request_id=getattr(request.state, "request_id", None)),
-            )
-        raise _exc  # pragma: no cover
+        # Unknown routes: JSON envelope (the SPA catch-all below handles
+        # non-API paths when a static build is mounted; in dev Vite serves
+        # the frontend itself).
+        return JSONResponse(
+            status_code=404,
+            content=error_envelope("not_found", "Resource not found.", request_id=getattr(request.state, "request_id", None)),
+        )
 
     # --- static web app (SPA), optional ---------------------------------
     if settings.static_dir:
